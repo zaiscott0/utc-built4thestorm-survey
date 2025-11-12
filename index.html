@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Storm-Ready Leader Assessment</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Chart.js for the results dashboard -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Use Inter font family -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Custom styles for the app */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Custom radio button styles for a better look */
+        .custom-radio {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 1.5rem;
+            height: 1.5rem;
+            border: 2px solid #cbd5e1; /* gray-300 */
+            border-radius: 50%;
+            display: inline-block;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .custom-radio:checked {
+            border-color: #2563eb; /* blue-600 */
+            background-color: #2563eb; /* blue-600 */
+        }
+
+        .custom-radio:checked::after {
+            content: '';
+            width: 0.75rem;
+            height: 0.75rem;
+            border-radius: 50%;
+            background: white;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .custom-radio:hover {
+            border-color: #3b82f6; /* blue-500 */
+        }
+
+        /* Styles for the progress bar */
+        .progress-bar-inner {
+            transition: width 0.3s ease-in-out;
+        }
+
+        /* Print-specific styles for the report */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            
+            #results-screen, #results-screen * {
+                visibility: visible;
+            }
+
+            #results-screen {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                padding: 0;
+                margin: 0;
+                box-shadow: none;
+                border: none;
+            }
+            
+            canvas {
+                max-width: 100% !important;
+                height: auto !important;
+            }
+            
+            .chart-container {
+                page-break-inside: avoid;
+            }
+
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <!-- Main Application Container -->
+    <main id="app-container" class="w-full max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden transition-all duration-300">
+
+        <!-- ===== Screen 1: Welcome ===== -->
+        <div id="welcome-screen" class="p-8 md:p-12">
+            <header class="text-center">
+                <h1 class="text-3xl md:text-4xl font-bold text-gray-900">The Storm-Ready Leader Assessment</h1>
+                <p class="mt-3 text-lg text-gray-600">Based on the book <strong class="font-semibold text-gray-800">"Built for the Storm"</strong> by Live Prosperous</p>
+            </header>
+
+            <div class="mt-8 text-gray-700 space-y-4">
+                <p>Welcome! This assessment is designed to help you discover your unique leadership influence and impact.</p>
+                <p>By answering 32 questions, you'll receive a personalized profile of your current strengths across the 8 Core Pillars of a Storm-Ready Leader. This will reveal where you're strong and identify the best opportunities for your growth.</p>
+                <p class="font-medium">The assessment takes about 5-7 minutes to complete.</p>
+            </div>
+
+            <div class="mt-8">
+                <label for="name" class="block text-sm font-medium text-gray-700">Enter your name (for your report):</label>
+                <input type="text" id="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-3" placeholder="e.g., Jane Doe">
+                <span id="name-error" class="text-red-600 text-sm mt-1 hidden">Please enter your name.</span>
+            </div>
+
+            <div class="mt-8 text-center">
+                <button id="start-btn" class="w-full md:w-auto bg-blue-600 text-white font-bold py-3 px-10 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200">
+                    Start Assessment
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== Screen 2: Survey ===== -->
+        <div id="survey-screen" class="p-8 md:p-12 hidden">
+            <!-- Progress Bar -->
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-2">
+                    <span id="progress-text" class="text-sm font-medium text-blue-700">Question 1 of 32</span>
+                    <span id="pillar-text" class="text-sm font-medium text-gray-500">Pillar: Be Present</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div id="progress-bar-inner" class="progress-bar-inner bg-blue-600 h-2.5 rounded-full" style="width: 3.125%"></div>
+                </div>
+            </div>
+
+            <!-- Question Area -->
+            <div class="mt-8">
+                <h2 id="question-text" class="text-2xl font-semibold text-gray-900 mb-6"></h2>
+                <span id="question-error" class="text-red-600 text-sm mb-4 hidden">Please select an answer.</span>
+                <div id="options-container" class="space-y-4">
+                    <!-- Options will be dynamically inserted here -->
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="mt-10 flex justify-between">
+                <button id="prev-btn" class="bg-gray-300 text-gray-800 font-medium py-2 px-6 rounded-lg hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 transition-all duration-200">
+                    Back
+                </button>
+                <button id="next-btn" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200">
+                    Next
+                </button>
+                <button id="finish-btn" class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 hidden">
+                    Finish & See Results
+                </button>
+            </div>
+        </div>
+        
+        <!-- ===== Screen 3: Results ===== -->
+        <div id="results-screen" class="p-8 md:p-12 hidden">
+            <header class="text-center">
+                <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Your Storm-Ready Leader Profile</h1>
+                <p id="results-name" class="mt-3 text-2xl text-blue-600 font-semibold"></p>
+            </header>
+
+            <!-- 1. Visual Dashboard -->
+            <section class="mt-10 chart-container">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Your Leadership Dashboard</h2>
+                <p class="text-gray-600 mb-6">This chart visualizes your scores (from 1 to 5) across the 8 Core Pillars. A higher score indicates a stronger alignment with that leadership archetype.</p>
+                <canvas id="results-chart" width="400" height="300"></canvas>
+            </section>
+
+            <!-- 2. Primary Archetypes -->
+            <section class="mt-12">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Your Primary Archetypes</h2>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div id="primary-strength-1" class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                        <h3 id="top-pillar-1-title" class="text-xl font-bold text-blue-700 mb-2"></h3>
+                        <p id="top-pillar-1-desc" class="text-gray-700"></p>
+                    </div>
+                    <div id="primary-strength-2" class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                        <h3 id="top-pillar-2-title" class="text-xl font-bold text-blue-700 mb-2"></h3>
+                        <p id="top-pillar-2-desc" class="text-gray-700"></p>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- 3. Growth Opportunity -->
+            <section class="mt-12">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Your Next Growth Opportunity</h2>
+                <div class="bg-yellow-50 p-6 rounded-lg border border-yellow-200">
+                    <h3 id="low-pillar-title" class="text-xl font-bold text-yellow-800 mb-2"></h3>
+                    <p id="low-pillar-desc" class="text-gray-700 mb-4"></p>
+                    <div class="bg-white p-4 rounded-md border border-gray-200">
+                        <h4 class="font-semibold text-gray-800 mb-2">Personalized Next Steps:</h4>
+                        <ul id="low-pillar-recs" class="list-disc list-inside text-gray-700 space-y-1">
+                            <!-- Recommendations inserted here -->
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. CTA / PDF -->
+            <section class="mt-12 text-center no-print">
+                <button id="print-btn" class="w-full md:w-auto bg-blue-600 text-white font-bold py-3 px-10 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200">
+                    Print Your Full Report
+                </button>
+                <div class="mt-6">
+                    <p class="text-gray-600">Ready to become a leader life can't break?</p>
+                    <a href="https://learn.liveprosperous.com" target="_blank" class="font-semibold text-blue-600 hover:text-blue-700 hover:underline">
+                        Visit learn.liveprosperous.com to learn more
+                    </a>
+                </div>
+            </section>
+
+        </div>
+
+    </main>
+
+
+    <script>
+        // ===== DATA: Questions and Pillar Info =====
+
+        const surveyQuestions = [
+            // Pillar 1: Be Present
+            { pillar: "Present", text: "I remain calm and focused when facing unexpected challenges." },
+            { pillar: "Present", text: "I am fully aware of my emotional state during stressful situations." },
+            { pillar: "Present", text: "I listen actively to others without letting my mind wander to other tasks." },
+            { pillar: "Present", text: "I can separate my immediate emotional reaction from my considered response." },
+            // Pillar 2: Author
+            { pillar: "Author", text: "I take full responsibility for the outcomes of my decisions, good or bad." },
+            { pillar: "Author", text: "I believe I am the primary driver of my own success and career path." },
+            { pillar: "Author", text: "I proactively define my goals rather than waiting for them to be assigned." },
+            { pillar: "Author", text: "When I make a mistake, my first step is to own it rather than assign blame." },
+            // Pillar 3: Firefighter
+            { pillar: "Firefighter", text: "In a crisis, I am decisive and able to make tough calls quickly." },
+            { pillar: "Firefighter", text: "I thrive in high-pressure environments where quick thinking is required." },
+            { pillar: "Firefighter", text: "I can quickly identify the root cause of a sudden problem." },
+            { pillar: "Firefighter", text: "I am effective at de-escalating tense situations and restoring order." },
+            // Pillar 4: Pilot
+            { pillar: "Pilot", text: "I regularly spend time thinking about the long-term (3-5 year) vision." },
+            { pillar: "Pilot", text: "I can see how small, current details connect to a larger strategic picture." },
+            { pillar: "Pilot", text: "I anticipate future obstacles and make plans to navigate them in advance." },
+            { pillar: "Pilot", text: "I am comfortable setting a long-range course, even with incomplete information." },
+            // Pillar 5: Manager
+            { pillar: "Manager", text: "I am highly organized and good at creating efficient systems or processes." },
+            { pillar: "Manager", text: "I am skilled at delegating tasks to the right people to get the job done." },
+            { pillar: "Manager", text: "I ensure my team has the resources and structure needed to succeed." },
+            { pillar: "Manager", text: "I am consistent in my follow-up and in managing performance expectations." },
+            // Pillar 6: Agile
+            { pillar: "Agile", text: "When a project's plan changes, I adapt quickly without significant frustration." },
+            { pillar: "Agile", text: "I see failure or setbacks as valuable learning opportunities." },
+            { pillar: "Agile", text: "I am always open to new ways of doing things, even if the old way works." },
+            { pillar: "Agile", text: "I can pivot my approach quickly based on new information or feedback." },
+            // Pillar 7: Intentional
+            { pillar: "Intentional", text: "My daily actions are clearly aligned with my most important long-term goals." },
+            { pillar: "Intentional", text: "I have a clear personal 'why' or purpose that guides my major life decisions." },
+            { pillar: "Intentional", text: "I proactively schedule time for activities that matter most to me, not just urgent ones." },
+            { pillar: "Intentional", text: "I regularly review my progress against my personal and professional goals." },
+            // Pillar 8: Lifeguard
+            { pillar: "Lifeguard", text: "My team's well-being and psychological safety are a top priority for me." },
+            { pillar: "Lifeguard", text: "I am highly empathetic and can often sense when a colleague is struggling." },
+            { pillar: "Lifeguard", text: "I am willing to protect my team, even if it means having a difficult conversation with others." },
+            { pillar: "Lifeguard", text: "I am vigilant about potential risks that could harm my team, project, or organization." }
+        ];
+        
+        const pillarInfo = {
+            "Present": {
+                title: "The Present Leader",
+                desc: "You are grounded, self-aware, and calm under pressure. Your ability to manage your emotional state allows you to respond thoughtfully rather than react impulsively.",
+                recs: [
+                    "Practice 5-minute mindfulness exercises each morning to train your focus.",
+                    "When stressed, use the '5-4-3-2-1' grounding technique (5 things you see, 4 you feel, etc.).",
+                    "In conversations, practice active listening by summarizing the other person's point before you respond."
+                ]
+            },
+            "Author": {
+                title: "The Author",
+                desc: "You take 100% ownership of your life and leadership. You write your own story, take responsibility for your actions, and proactively create your own success.",
+                recs: [
+                    "At the end of each day, write down one decision you 'authored' and its outcome.",
+                    "Identify one area where you're waiting for permission and instead take the first small, proactive step.",
+                    "Practice 'extreme ownership' by asking 'How did I contribute to this?' for both successes and failures."
+                ]
+            },
+            "Firefighter": {
+                title: "The Firefighter",
+                desc: "You are decisive and effective in a crisis. You thrive under pressure, run towards problems, and can bring order to chaos with your quick thinking.",
+                recs: [
+                    "Practice making small, low-stakes decisions more quickly (e.g., in meetings or daily tasks).",
+                    "Run 'pre-mortem' drills: 'If this project fails, what would have caused it?'",
+                    "Study crisis management frameworks to add structure to your natural instincts."
+                ]
+            },
+            "Pilot": {
+                title: "The Pilot",
+                desc: "You are a visionary and a strategist. You see the long-range forecast, set the course, and navigate your team towards a destination far in the future.",
+                recs: [
+                    "Block 30 minutes on your calendar each week for 'vision time' - no email, just thinking.",
+                    "Pick one long-term goal (1-3 years) and work backward to identify the next 3 steps.",
+                    "Read biographies of long-term thinkers or industry trend reports to broaden your perspective."
+                ]
+            },
+            "Manager": {
+                title: "The Manager",
+                desc: "You are organized, consistent, and an expert at building systems. You create the structure, processes, and accountability that allow a team to run efficiently.",
+                recs: [
+                    "Identify one recurring task you do and create a simple checklist or process for it.",
+                    "Practice delegation: Find one small task this week to give to someone else with clear instructions.",
+                    "Use a simple project management tool (like Trello or Asana) for a personal project to get comfortable with formal systems."
+                ]
+            },
+            "Agile": {
+                title: "The Agile Leader",
+                desc: "You are adaptable, flexible, and resilient. You embrace change, learn from failure, and can pivot quickly in response to new information.",
+                recs: [
+                    "This week, intentionally try doing a routine task a different way to build flexibility.",
+                    "When a small thing 'fails' (e.g., a meeting runs poorly), ask 'What's the one lesson I learned?'",
+                    "Practice 'testing and iterating' on a small scale, like trying a new email subject line."
+                ]
+            },
+            "Intentional": {
+                title: "The Intentional Leader",
+                desc: "You are purpose-driven and disciplined. You know your 'why,' and you align your daily actions and decisions with your most important values and goals.",
+                recs: [
+                    "Write down your Top 3 core values. For one day, track how your actions align with them.",
+                    "Use the 'Eisenhower Matrix' (Urgent/Important) to prioritize your to-do list for one day.",
+                    "Before saying 'yes' to a new commitment, ask 'Does this move me closer to my primary goal?'"
+                ]
+            },
+            "Lifeguard": {
+                title: "The Lifeguard",
+                desc: "You are a vigilant protector of your team. You are empathetic, look out for unseen risks, and create a high-trust environment of psychological safety.",
+                recs: [
+                    "Check in with one team member this week with no agenda other than 'How are you doing?'",
+                    "In your next team meeting, be the first to share a small mistake to model vulnerability.",
+                    "Proactively ask, 'What's one potential risk for this project that we're not talking about?'"
+                ]
+            }
+        };
+
+        const answerOptions = [
+            { text: "Strongly Disagree", value: 1 },
+            { text: "Disagree", value: 2 },
+            { text: "Neutral", value: 3 },
+            { text: "Agree", value: 4 },
+            { text: "Strongly Agree", value: 5 }
+        ];
+
+        // ===== STATE VARIABLES =====
+        let currentQuestionIndex = 0;
+        let userName = "";
+        let answers = new Array(surveyQuestions.length).fill(null);
+        let myChart;
+
+        // ===== API CONFIGURATION =====
+        const API_BASE_URL = 'https://utc-survey-api-1.onrender.com/user';
+
+        // ===== DOM ELEMENTS =====
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const surveyScreen = document.getElementById('survey-screen');
+        const resultsScreen = document.getElementById('results-screen');
+
+        const startBtn = document.getElementById('start-btn');
+        const nameInput = document.getElementById('name');
+        const nameError = document.getElementById('name-error');
+
+        const progressText = document.getElementById('progress-text');
+        const pillarText = document.getElementById('pillar-text');
+        const progressBarInner = document.getElementById('progress-bar-inner');
+        const questionText = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const questionError = document.getElementById('question-error');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const finishBtn = document.getElementById('finish-btn');
+
+        const resultsName = document.getElementById('results-name');
+        const resultsChartCtx = document.getElementById('results-chart').getContext('2d');
+        const topPillar1Title = document.getElementById('top-pillar-1-title');
+        const topPillar1Desc = document.getElementById('top-pillar-1-desc');
+        const topPillar2Title = document.getElementById('top-pillar-2-title');
+        const topPillar2Desc = document.getElementById('top-pillar-2-desc');
+        const lowPillarTitle = document.getElementById('low-pillar-title');
+        const lowPillarDesc = document.getElementById('low-pillar-desc');
+        const lowPillarRecs = document.getElementById('low-pillar-recs');
+        const printBtn = document.getElementById('print-btn');
+
+        // ===== EVENT LISTENERS =====
+        startBtn.addEventListener('click', startSurvey);
+        nextBtn.addEventListener('click', nextQuestion);
+        prevBtn.addEventListener('click', prevQuestion);
+        finishBtn.addEventListener('click', showResults);
+        printBtn.addEventListener('click', () => window.print());
+
+        // ===== FUNCTIONS =====
+
+        function startSurvey() {
+            userName = nameInput.value.trim();
+            if (userName === "") {
+                nameError.classList.remove('hidden');
+            } else {
+                nameError.classList.add('hidden');
+                welcomeScreen.classList.add('hidden');
+                surveyScreen.classList.remove('hidden');
+                displayQuestion();
+            }
+        }
+
+        function displayQuestion() {
+            const question = surveyQuestions[currentQuestionIndex];
+            
+            // Update text
+            questionText.textContent = question.text;
+            progressText.textContent = `Question ${currentQuestionIndex + 1} of ${surveyQuestions.length}`;
+            pillarText.textContent = `Pillar: ${question.pillar}`;
+            
+            // Update progress bar
+            const progressPercent = ((currentQuestionIndex + 1) / surveyQuestions.length) * 100;
+            progressBarInner.style.width = `${progressPercent}%`;
+
+            // Clear old options
+            optionsContainer.innerHTML = '';
+            questionError.classList.add('hidden');
+
+            // Create new options
+            answerOptions.forEach(option => {
+                const label = document.createElement('label');
+                label.className = "flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50";
+
+                const radio = document.createElement('input');
+                radio.type = 'radio';
+                radio.name = 'answer';
+                radio.value = option.value;
+                radio.className = 'custom-radio mr-4';
+                
+                // Check if this answer was previously selected
+                if (answers[currentQuestionIndex] === option.value) {
+                    radio.checked = true;
+                }
+
+                const text = document.createElement('span');
+                text.textContent = option.text;
+                text.className = 'text-lg text-gray-800';
+                
+                label.appendChild(radio);
+                label.appendChild(text);
+                optionsContainer.appendChild(label);
+            });
+
+            // Update button visibility
+            prevBtn.classList.toggle('hidden', currentQuestionIndex === 0);
+            nextBtn.classList.toggle('hidden', currentQuestionIndex === surveyQuestions.length - 1);
+            finishBtn.classList.toggle('hidden', currentQuestionIndex !== surveyQuestions.length - 1);
+        }
+
+        function nextQuestion() {
+            if (!saveAnswer()) {
+                questionError.classList.remove('hidden');
+                return; // Don't proceed if no answer is selected
+            }
+            
+            if (currentQuestionIndex < surveyQuestions.length - 1) {
+                currentQuestionIndex++;
+                displayQuestion();
+            }
+        }
+
+        function prevQuestion() {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                displayQuestion();
+            }
+        }
+        
+        function saveAnswer() {
+            const selected = document.querySelector('input[name="answer"]:checked');
+            if (selected) {
+                answers[currentQuestionIndex] = parseInt(selected.value);
+                questionError.classList.add('hidden');
+                return true;
+            }
+            return false;
+        }
+
+        function showResults() {
+             if (!saveAnswer() && !finishBtn.classList.contains('hidden')) {
+                questionError.classList.remove('hidden');
+                return; // Don't finish if last question isn't answered
+            }
+            
+            const finalScores = calculateScores();
+            
+            // Save data to server
+            saveDataToServer(finalScores);
+            
+            // 1. Set Name
+            resultsName.textContent = `for ${userName}`;
+
+            // 2. Render Chart
+            renderRadarChart(finalScores);
+            
+            // 3. Display Analysis
+            displayAnalysis(finalScores);
+            
+            // 4. Switch Screens
+            surveyScreen.classList.add('hidden');
+            resultsScreen.classList.remove('hidden');
+        }
+        
+        function calculateScores() {
+            const pillarScores = {};
+            const pillarCounts = {};
+
+            surveyQuestions.forEach((q, index) => {
+                const score = answers[index];
+                if (!pillarScores[q.pillar]) {
+                    pillarScores[q.pillar] = 0;
+                    pillarCounts[q.pillar] = 0;
+                }
+                pillarScores[q.pillar] += score;
+                pillarCounts[q.pillar]++;
+            });
+
+            const finalAverages = {};
+            for (const pillar in pillarScores) {
+                finalAverages[pillar] = (pillarScores[pillar] / pillarCounts[pillar]).toFixed(1);
+            }
+            return finalAverages;
+        }
+        
+        function displayAnalysis(scores) {
+            // Sort scores to find highs and lows
+            const sortedScores = Object.entries(scores) // [["Present", 4.5], ["Author", 3.0], ...]
+                                    .sort(([,a], [,b]) => b - a); // Sort by score descending
+            
+            const [topPillar1Name, topPillar1Score] = sortedScores[0];
+            const [topPillar2Name, topPillar2Score] = sortedScores[1];
+            const [lowPillarName, lowPillarScore] = sortedScores[sortedScores.length - 1];
+
+            // Set Top Strengths
+            topPillar1Title.textContent = `${pillarInfo[topPillar1Name].title} (Score: ${topPillar1Score})`;
+            topPillar1Desc.textContent = pillarInfo[topPillar1Name].desc;
+            
+            topPillar2Title.textContent = `${pillarInfo[topPillar2Name].title} (Score: ${topPillar2Score})`;
+            topPillar2Desc.textContent = pillarInfo[topPillar2Name].desc;
+
+            // Set Growth Opportunity
+            lowPillarTitle.textContent = `${pillarInfo[lowPillarName].title} (Score: ${lowPillarScore})`;
+            lowPillarDesc.textContent = pillarInfo[lowPillarName].desc;
+            
+            // Set Recommendations
+            lowPillarRecs.innerHTML = ''; // Clear old recs
+            pillarInfo[lowPillarName].recs.forEach(rec => {
+                const li = document.createElement('li');
+                li.textContent = rec;
+                lowPillarRecs.appendChild(li);
+            });
+        }
+        
+        function renderRadarChart(scores) {
+            if (myChart) {
+                myChart.destroy(); // Destroy old chart instance if it exists
+            }
+            
+            const pillarNames = Object.keys(pillarInfo); // Use pillarInfo to maintain order
+            const scoreData = pillarNames.map(pillar => scores[pillar] || 0);
+
+            myChart = new Chart(resultsChartCtx, {
+                type: 'radar',
+                data: {
+                    labels: pillarNames,
+                    datasets: [{
+                        label: 'Your Score',
+                        data: scoreData,
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)', // blue-500 transparency
+                        borderColor: 'rgba(37, 99, 235, 1)', // blue-600
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(37, 99, 235, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(37, 99, 235, 1)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        r: {
+                            angleLines: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            },
+                            pointLabels: {
+                                font: {
+                                    size: 14,
+                                    weight: '500'
+                                },
+                                color: '#333'
+                            },
+                            ticks: {
+                                beginAtZero: true,
+                                min: 0,
+                                max: 5,
+                                stepSize: 1,
+                                backdropColor: 'rgba(255, 255, 255, 0.75)',
+                                color: '#555'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false // Hide the legend as it's self-explanatory
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.chart.data.labels[context.dataIndex]}: ${context.raw}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ===== SAVE DATA TO SERVER =====
+        async function saveDataToServer(finalScores) {
+            try {
+                // Prepare the data payload to match existing server schema
+                const userData = {
+                    // Map to existing schema fields
+                    first_name: userName,
+                    // Store our survey data in the flexible array fields
+                    xp: answers, // individual answers array
+                    c_xp: [
+                        {
+                            pillar_scores: finalScores,
+                            survey_questions: surveyQuestions.map(q => ({
+                                pillar: q.pillar,
+                                text: q.text
+                            })),
+                            completed_at: new Date().toISOString(),
+                            survey_type: "Built for the Storm Leadership Assessment",
+                            total_questions: surveyQuestions.length
+                        }
+                    ],
+                    // Add a statement field to identify this as storm leadership data
+                    statement: "Built for the Storm Leadership Assessment",
+                    dbTable: "StormLeadershipAssessment" // Specify collection name
+                };
+
+                console.log('Sending data to server:', userData);
+
+                // Send data to server
+                const response = await fetch(API_BASE_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(userData)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Data saved successfully:', result);
+                } else {
+                    console.error('Failed to save data:', response.status, response.statusText);
+                }
+            } catch (error) {
+                console.error('Error saving data to server:', error);
+                // Don't block the user experience if server save fails
+                // The results will still be displayed
+            }
+        }
+
+    </script>
+</body>
+
+</html>
